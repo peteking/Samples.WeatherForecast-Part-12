@@ -1,11 +1,8 @@
 config:
-  azure-native:location: uksouth
+  Samples.WeatherForecast.Infra-12:docker-image: ghcr.io/peteking/samples-weatherforecast-part-11:3dae90cc47eff6861687444a6e91be89a65bed9f
   azure-native:clientId: 54919e4a-7865-410c-958c-9668f61ad22e
   azure-native:clientSecret:
-    secure: AAABACsSuUwb4te4h1FsWKL3b5mv/lHogqDg0VTCV1MFy2gEHa80PeJUg4uq7eJDYtnoZ2WmyjOm6fXYtQlRS7SH
+    secure: AAABAJLiGBpvLMstgS0X9falquOfP3jabW7Pts3zZT1tF/WM3mnBEcN4uBefOQbgeJzgEUclN9ByWcv81FQgRCww
+  azure-native:location: uksouth
   azure-native:subscriptionId: 4c577fbe-ca07-4b8e-9951-5f6f67b65743
   azure-native:tenantId: 9c68f06d-083c-4186-9a42-66dc9b34d3c9
-
-  # This is only here and committed to Git for training reasons - This should be removed so you don't accidently use an old image.
-  # If you wish to validate/test this Stack you can set the value here.
-  Samples.WeatherForecast.Infra:docker-image: ghcr.io/peteking/samples-weatherforecast-part-11:3dae90cc47eff6861687444a6e91be89a65bed9f
