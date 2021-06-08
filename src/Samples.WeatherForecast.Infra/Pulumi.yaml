@@ -1,0 +1,3 @@
+name: Samples.WeatherForecast.Infra
+runtime: dotnet
+description: Infra for WeatherForecast

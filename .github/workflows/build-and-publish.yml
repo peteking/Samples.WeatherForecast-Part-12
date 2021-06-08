@@ -1,0 +1,105 @@
+name: Build and Publish
+
+on:
+  push:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+env:
+  image-name: ghcr.io/${{ github.repository_owner }}/samples-weatherforecast-part-12:${{ github.sha }}
+  image-name-unit-tests: unit-tests:latest
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Unit tests [build]
+        run: docker build --target unit-test -t ${{ env.image-name-unit-tests }} .
+
+      - name: Unit tests [run]
+        run: docker run --rm -v ${{ github.workspace }}/path/to/artifacts/testresults:/code/test/Samples.WeatherForecast.Api.UnitTest/TestResults ${{ env.image-name-unit-tests }}
+        
+      - name: Unit tests [upload artifacts]  
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: unit-test-results
+          path: ${{ github.workspace }}/path/to/artifacts/testresults/
+          
+      - name: Unit tests [publish results]
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Unit tests
+          path: ${{ github.workspace }}/path/to/artifacts/testresults/test_results_unit_test.trx
+          reporter: dotnet-trx
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Code coverage [Code Climate]
+        uses: paambaati/codeclimate-action@v2.7.5
+        env:
+          CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
+        with:
+          coverageLocations: ${{ github.workspace }}/path/to/artifacts/testresults/coverage.info:lcov
+          prefix: /code/
+
+      - name: App [build]
+        run: docker build -t ${{ env.image-name }} .
+
+      - name: App [scan]
+        uses: azure/container-scan@v0
+        with:
+          image-name: ${{ env.image-name }}
+          severity-threshold: MEDIUM
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GH_CR }}
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GH_CR }}
+
+      - name: App [publish]
+        run: docker push ${{ env.image-name }}
+
+  infra:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Install Pulumi CLI
+        uses: pulumi/action-install-pulumi-cli@v1.1.0
+
+      - name: Set Pulumi config values
+        working-directory: ./src/Samples.WeatherForecast.Infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: |
+          pulumi stack select dev
+          pulumi config set Samples.WeatherForecast.Infra:docker-image ${{ env.image-name }}
+
+      - name: Pulumi Up
+        uses: pulumi/actions@v3.1.0
+        with:
+          command: up
+          stack-name: dev
+          work-dir: ./src/Samples.WeatherForecast.Infra
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
